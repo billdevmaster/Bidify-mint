@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import { NFTStorage } from 'nft.storage';
 import bannerImg from "../assets/images/heroIllustration.svg"
 import bidifyLogo from "../assets/images/bidify.png"
 import disturb from "../assets/images/disturb.png"
@@ -25,9 +26,8 @@ import MailchimpSubscribe from "react-mailchimp-subscribe";
 import Terms from "../assets/docs/Bidify_Mint_Terms_and_Conditions.pdf";
 import Policy from "../assets/docs/Bidify_Mint_Privacy_Policy.pdf";
 // import { create } from 'ipfs-http-client'
-import fleekStorage from '@fleekhq/fleek-storage-js'
 
-
+const client = new NFTStorage({token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweEI3YUQzMGI1YThEOWJkRURGNjQ2NTg2N0VDOTZjMGY0Y0I3Y0E3NGMiLCJpc3MiOiJuZnQtc3RvcmFnZSIsImlhdCI6MTY5NDI3NjYzMTY5NywibmFtZSI6ImJpZGlmeS1taW50In0.-_SOny5_UgfxKmRq5renj7UUePOcAS0PT1LdgAHzcZw"});
 
 const postUrl = `https://cryptosi.us2.list-manage.com/subscribe/post?u=${process.env.REACT_APP_MAILCHIMP_U}&id=${process.env.REACT_APP_MAILCHIMP_ID}`;
 // const ipfs = create({ host: 'ipfs.infura.io', port: 5001, protocol: 'https', apiPath: '/ipfs/api/v0' })
@@ -42,8 +42,6 @@ const modalContents = {
 
 export const Home = () => {
     const { account, library, chainId, activate } = useWeb3React()
-    console.log('library', library)
-    console.log('chainId', chainId)
     const [buffer, setBuffer] = useState()
     const [name, setName] = useState("")
     const [description, setDescription] = useState("")
@@ -387,12 +385,14 @@ export const Home = () => {
         return finalResult;
     };
     useEffect(() => {
-        if (library) {
+        if (account && library && addresses[chainId]) {
+            console.log("*****************", account)
             const getCost = async () => {
                 if (amount) {
                     const signer = library.getSigner()
                     const BidifyMinter = new ethers.Contract(addresses[chainId], ABI, signer)
                     const mintCost = await BidifyMinter.calculateCost(amount)
+                    // console.log(mintCost)
                     setCost(mintCost)
                 }
                 else setCost(0)
@@ -400,14 +400,12 @@ export const Home = () => {
             getCost()
             getData()
         }
-
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [amount, library, chainId])
 
     const getData = async () => {
         const signer = library.getSigner()
         try {
-
             const BidifyMinter = new ethers.Contract(addresses[chainId], ABI, signer)
             const collections = await BidifyMinter.getCollections()
             setCollections(collections)
@@ -428,68 +426,36 @@ export const Home = () => {
 
         setLoading(true)
         setModalContent("ipfs")
-
-        const files = await fleekStorage.listFiles({
-            apiKey: process.env.REACT_APP_API_KEY,
-            apiSecret: process.env.REACT_APP_API_SECRET,
-            bucket: process.env.REACT_APP_BUCKET,
-            getOptions: [
-                'key',
-                'hash',
-                'publicUrl'
-            ],
-        })
-        const key = files.length
-        let uploadedFile
-        try {
-            uploadedFile = await fleekStorage.upload({
-                apiKey: process.env.REACT_APP_API_KEY,
-                apiSecret: process.env.REACT_APP_API_SECRET,
-                bucket: process.env.REACT_APP_BUCKET,
-                key: key.toString(),
-                data: buffer,
-                httpUploadProgressCallback: (event) => {
-                    console.log(Math.round(event.loaded / event.total * 100) + '% done');
-                }
-            })
-        } catch (e) {
-            console.log("err while uploading image", e)
-            setLoading(false)
-        }
-        // ipfs.add(buffer).then(async (result) => {
-        const tokenURI = {
-            name,
-            description,
-            image: uploadedFile.publicUrl
-        }
-        let added
-        try {
-            added = await fleekStorage.upload({
-                apiKey: process.env.REACT_APP_API_KEY,
-                apiSecret: process.env.REACT_APP_API_SECRET,
-                bucket: process.env.REACT_APP_BUCKET,
-                key: key + 1 + ".json",
-                data: Buffer(JSON.stringify(tokenURI)),
-                httpUploadProgressCallback: (event) => {
-                    console.log(Math.round(event.loaded / event.total * 100) + '% done');
-                }
-            })
-        } catch (e) {
-            console.log("err while uploading metadata", e)
-            setLoading(false)
-        }
+        const bufferData = Buffer.from(buffer); // Replace with your actual buffer data
+        const blob = new Blob([bufferData]);
+        const cid = await client.storeBlob(blob);
+        const imageUrl = `https://ipfs.io/ipfs/${cid}`;
+        const metadataCid = await client.storeDirectory([
+            new File(
+              [
+                JSON.stringify({
+                  name: name,
+                  description: description,
+                  assetType: "image",
+                  image: imageUrl,
+                }),
+              ],
+              'metadata.json'
+            ),
+        ]);
+        const metadataUrl = `https://ipfs.io/ipfs/${metadataCid}/metadata.json`;
         try {
             const dataToDatabase = {
                 description: description,
-                image: uploadedFile.publicUrl,
-                metadataUrl: added.publicUrl,
+                image: imageUrl,
+                metadataUrl: metadataUrl,
                 name: name,
                 owner: account,
                 platform: erc721,
                 network: chainId,
                 isERC721: true,
             }
-            const tokenURIJson = added.publicUrl
+            const tokenURIJson = metadataUrl
             setModalContent("mint")
             const signer = library.getSigner()
             const BidifyMinter = new ethers.Contract(addresses[chainId], ABI, signer)
@@ -528,7 +494,7 @@ export const Home = () => {
                     return Number(ethers.utils.hexValue(hex))
                 })
             }
-
+            console.log(tokenIds)
             if (forSale) {
                 setModalContent("list");
 
