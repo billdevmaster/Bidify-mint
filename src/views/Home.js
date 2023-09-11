@@ -27,7 +27,7 @@ import Terms from "../assets/docs/Bidify_Mint_Terms_and_Conditions.pdf";
 import Policy from "../assets/docs/Bidify_Mint_Privacy_Policy.pdf";
 // import { create } from 'ipfs-http-client'
 
-const client = new NFTStorage({token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweEI3YUQzMGI1YThEOWJkRURGNjQ2NTg2N0VDOTZjMGY0Y0I3Y0E3NGMiLCJpc3MiOiJuZnQtc3RvcmFnZSIsImlhdCI6MTY5NDI3NjYzMTY5NywibmFtZSI6ImJpZGlmeS1taW50In0.-_SOny5_UgfxKmRq5renj7UUePOcAS0PT1LdgAHzcZw"});
+const client = new NFTStorage({token: process.env.REACT_APP_STORAGE_KEY});
 
 const postUrl = `https://cryptosi.us2.list-manage.com/subscribe/post?u=${process.env.REACT_APP_MAILCHIMP_U}&id=${process.env.REACT_APP_MAILCHIMP_ID}`;
 // const ipfs = create({ host: 'ipfs.infura.io', port: 5001, protocol: 'https', apiPath: '/ipfs/api/v0' })
