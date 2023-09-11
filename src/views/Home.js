@@ -41,7 +41,7 @@ const modalContents = {
 
 
 export const Home = () => {
-    const { account, library, chainId, activate } = useWeb3React()
+    const { account, library, chainId, activate, deactivate } = useWeb3React()
     const [buffer, setBuffer] = useState()
     const [name, setName] = useState("")
     const [description, setDescription] = useState("")
@@ -385,8 +385,8 @@ export const Home = () => {
         return finalResult;
     };
     useEffect(() => {
+        console.log("*****************", account)
         if (account && library && addresses[chainId]) {
-            console.log("*****************", account)
             const getCost = async () => {
                 if (amount) {
                     const signer = library.getSigner()
@@ -399,6 +399,8 @@ export const Home = () => {
             }
             getCost()
             getData()
+        } else {
+            deactivate();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [amount, library, chainId])
